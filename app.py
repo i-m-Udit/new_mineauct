@@ -43,6 +43,7 @@ def init_db():
         except: pass
     conn.commit()
     conn.close()
+init_db()
 
 # --- GAME STATE ---
 game = {
@@ -192,5 +193,4 @@ def submit_lineup(lineup):
     emit('sync_state', game, broadcast=True)
 
 if __name__ == '__main__':
-    init_db()
     socketio.run(app, debug=True, port=5000)
