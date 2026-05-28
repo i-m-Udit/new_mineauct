@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>MineAuct Arena</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+    <style>
+        :root {
+            --bg: #0a0a0a; --panel: #141414; --border: #333;
+            --text: #e0e0e0; --accent: #7c3aed; --accent-hover: #5b21b6;
+            --hostile: #ef4444; --neutral: #eab308; --passive: #22c55e;
+            --winner-bg: rgba(124, 58, 237, 0.2); --winner-border: #7c3aed;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; }
+        
+        /* Navbar */
+        nav { background: var(--panel); border-bottom: 1px solid var(--border); padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; }
+        .brand { font-size: 20px; font-weight: bold; color: var(--accent); }
+        .btn { background: var(--accent); color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        .btn:hover { background: var(--accent-hover); }
+        .btn-red { background: #dc2626; } .btn-red:hover { background: #b91c1c; }
+        
+        /* Layouts */
+        .container { flex: 1; padding: 20px; display: none; max-width: 1200px; margin: 0 auto; width: 100%; }
+        .active { display: block; }
+        
+        /* Login */
+        .login-box { max-width: 400px; margin: 100px auto; background: var(--panel); padding: 30px; border: 1px solid var(--border); border-radius: 12px; }
+        .input-group { margin-bottom: 15px; }
+        .input-group label { display: block; margin-bottom: 5px; font-size: 12px; text-transform: uppercase; color: #888; }
+        .input-group input, .input-group select { width: 100%; padding: 10px; background: #000; border: 1px solid var(--border); color: white; border-radius: 6px; }
+        
+        /* Game Layout */
+        .grid-layout { display: grid; grid-template-columns: 250px 1fr 300px; gap: 20px; height: calc(100vh - 100px); }
+        .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 20px; display: flex; flex-direction: column; }
+        
+        /* Players */
+        .player-card { padding: 15px; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 10px; background: #000; }
+        .player-card.is-me { border-color: var(--accent); }
+        .purse { font-size: 24px; font-weight: bold; color: #10b981; margin-top: 5px; }
+        
+        /* Auction Center */
+        .auction-center { text-align: center; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+        .mob-title { font-size: 48px; font-weight: bold; margin: 10px 0; }
+        .tier-badge { padding: 5px 15px; border-radius: 20px; font-weight: bold; font-size: 14px; border: 1px solid; }
+        .current-bid { font-size: 64px; font-weight: bold; color: var(--accent); margin: 20px 0; }
+        .controls { display: flex; gap: 10px; margin-top: 20px; }
+        
+        /* Chat */
+        .chat-box { flex: 1; overflow-y: auto; background: #000; border: 1px solid var(--border); border-radius: 8px; padding: 10px; margin-bottom: 10px; display: flex; flex-direction: column; gap: 8px; }
+        .chat-input-row { display: flex; gap: 5px; }
+        
+        /* Lineup & Results Grid */
+        .roster-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+        .cat-title { text-transform: uppercase; font-weight: bold; margin-bottom: 10px; padding-bottom: 5px; border-bottom: 1px solid var(--border); }
+        .slot-row { display: flex; gap: 10px; margin-bottom: 10px; align-items: center; }
+        .slot-num { font-weight: bold; color: #888; width: 20px; }
+        
+        /* Results Specific */
+        .results-board { display: flex; flex-direction: column; gap: 30px; }
+        .leaderboard { display: flex; justify-content: space-around; background: var(--panel); padding: 20px; border-radius: 12px; border: 1px solid var(--border); }
+        .score-card { text-align: center; font-size: 24px; font-weight: bold; }
+        .lineups-comparison { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; }
+        .final-player-col { background: var(--panel); padding: 15px; border: 1px solid var(--border); border-radius: 8px; }
+        .final-slot { padding: 8px; margin-bottom: 5px; border: 1px solid var(--border); border-radius: 6px; background: #000; font-size: 14px; display: flex; justify-content: space-between; }
+        .final-slot.winner { background: var(--winner-bg); border-color: var(--winner-border); font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<nav>
+    <div class="brand">⚔ MineAuct</div>
+    <div id="nav-user"></div>
+</nav>
+
+<div id="view-login" class="container {% if view == 'login' %}active{% endif %}">
+    <div class="login-box">
+        <h2 style="margin-bottom: 20px; text-align: center;">Enter Arena</h2>
+        <div class="input-group">
+            <label>Select Player</label>
+            <select id="login-user">
+                <option value="player1">Player 1 (Host)</option>
+                <option value="player2">Player 2</option>
+                <option value="player3">Player 3</option>
+                <option value="player4">Player 4</option>
+            </select>
+        </div>
+        <div class="input-group">
+            <label>Password</label>
+            <input type="password" id="login-pass" placeholder="Password (same as username)">
+        </div>
+        <button class="btn" style="width: 100%;" onclick="doLogin()">Login</button>
+        <p id="login-err" style="color: red; margin-top: 10px; text-align: center;"></p>
+    </div>
+</div>
+
+<div id="view-game" class="container {% if view == 'game' %}active{% endif %}" style="max-width: 1600px;">
+    <div class="grid-layout">
+        
+        <div class="panel" style="overflow-y: auto;">
+            <h3 style="margin-bottom: 15px; text-transform: uppercase; color: #888; font-size: 12px;">Players</h3>
+            <div id="players-list"></div>
+        </div>
+
+        <div class="panel" style="position: relative;">
+            
+            <div id="state-lobby" class="auction-center" style="display:none; height: 100%;">
+                <h1 style="font-size: 40px; margin-bottom: 10px;">Waiting Room</h1>
+                <p style="color: #888; margin-bottom: 30px;">Waiting for the Host to start...</p>
+                {% if is_host %}
+                <button class="btn" style="font-size: 20px; padding: 15px 40px;" onclick="socket.emit('start_game')">START MATCH</button>
+                {% endif %}
+            </div>
+
+            <div id="state-auction" class="auction-center" style="display:none; height: 100%;">
+                <div style="position: absolute; top: 20px; right: 20px; font-weight: bold; color: #888;">
+                    Mob: <span id="mob-counter" style="color: white;">0/0</span>
+                </div>
+                <div id="mob-tier" class="tier-badge" style="color: var(--hostile); border-color: var(--hostile);">S TIER</div>
+                <div id="mob-name" class="mob-title">Warden</div>
+                <div id="mob-cat" style="text-transform: uppercase; letter-spacing: 2px; color: #888;">Hostile</div>
+                
+                <div id="current-bid" class="current-bid">◈0.5</div>
+                <div id="highest-bidder" style="font-weight: bold; font-size: 18px; margin-bottom: 20px;">Awaiting bid...</div>
+                
+                <div class="controls">
+                    <button class="btn" onclick="socket.emit('place_bid', 0.5)">+0.5</button>
+                    <button class="btn" onclick="socket.emit('place_bid', 1.0)">+1</button>
+                    <button class="btn" onclick="socket.emit('place_bid', 5.0)">+5</button>
+                    <button class="btn btn-red" onclick="socket.emit('pass_bid')">🚫 PASS</button>
+                </div>
+            </div>
+
+            <div id="state-lineup" style="display:none;">
+                <h2 style="margin-bottom: 20px; text-align: center;">Set Your Tactical Lineup</h2>
+                <div class="roster-grid">
+                    <div id="cat-hostile"></div>
+                    <div id="cat-neutral"></div>
+                    <div id="cat-passive"></div>
+                </div>
+                <div style="text-align: center; margin-top: 30px;">
+                    <button class="btn" style="padding: 15px 40px;" onclick="submitLineup()">LOCK IN LINEUP</button>
+                    <p id="lineup-waiting" style="display: none; color: #888; margin-top: 10px;">Waiting for others...</p>
+                </div>
+            </div>
+
+            <div id="state-results" style="display:none;" class="results-board">
+                <h1 style="text-align: center; color: var(--accent);">Match Complete</h1>
+                <div id="leaderboard" class="leaderboard"></div>
+                
+                <h3 style="text-align: center; border-bottom: 1px solid var(--border); padding-bottom: 10px;">Lineup Breakdown</h3>
+                <div id="final-lineups" class="lineups-comparison"></div>
+                
+                <div style="text-align: center;">
+                    <button class="btn" onclick="socket.emit('start_game')">Return to Lobby / Play Again</button>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="panel">
+            <h3 style="margin-bottom: 10px; text-transform: uppercase; color: #888; font-size: 12px;">Match Chat</h3>
+            <div id="chat-box" class="chat-box"></div>
+            <div class="chat-input-row">
+                <input type="text" id="chat-input" class="input-group" style="flex:1; padding:10px; background:#000; color:white; border:1px solid var(--border); border-radius:6px;" placeholder="Message..." onkeypress="if(event.key==='Enter') sendChat()">
+                <button class="btn" onclick="sendChat()">Send</button>
+            </div>
+            
+            <h3 style="margin: 20px 0 10px; text-transform: uppercase; color: #888; font-size: 12px;">My Purchases</h3>
+            <div id="my-inventory" style="flex: 1; overflow-y: auto; background: #000; border: 1px solid var(--border); border-radius: 8px; padding: 10px;"></div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    const MY_USERNAME = "{{ username }}";
+    if (MY_USERNAME) document.getElementById('nav-user').innerHTML = `<b>${MY_USERNAME}</b> | <a href="/logout" style="color:#888; text-decoration:none;">Logout</a>`;
+    
+    let socket;
+    if (MY_USERNAME) {
+        socket = io();
+        socket.on('sync_state', (state) => renderState(state));
+    }
+
+    async function doLogin() {
+        const u = document.getElementById('login-user').value;
+        const p = document.getElementById('login-pass').value;
+        const res = await fetch('/login', {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({username: u, password: p})
+        });
+        const data = await res.json();
+        if (data.success) window.location.reload();
+        else document.getElementById('login-err').innerText = data.error;
+    }
+
+    function sendChat() {
+        const inp = document.getElementById('chat-input');
+        if (inp.value.trim()) {
+            socket.emit('chat_msg', inp.value.trim());
+            inp.value = '';
+        }
+    }
+
+    let myPurchasesCache = [];
+
+    function renderState(state) {
+        // 1. Render Players List
+        const pList = document.getElementById('players-list');
+        pList.innerHTML = '';
+        for (const [uname, data] of Object.entries(state.players)) {
+            const isMe = uname === MY_USERNAME;
+            const isOut = state.players_out.includes(uname);
+            const isLead = uname === state.highest_bidder;
+            
+            pList.innerHTML += `
+                <div class="player-card ${isMe ? 'is-me' : ''}" style="opacity: ${isOut ? '0.4' : '1'}">
+                    <div style="display:flex; justify-content:space-between;">
+                        <b>${uname}</b> 
+                        ${isLead ? '<span style="color:var(--accent); font-size:12px; font-weight:bold;">LEAD</span>' : ''}
+                    </div>
+                    <div class="purse">◈${data.purse.toFixed(1)}</div>
+                    <div style="font-size: 12px; color: #888; margin-top: 5px;">Mobs: ${data.purchases.length}</div>
+                </div>
+            `;
+            if (isMe) myPurchasesCache = data.purchases;
+        }
+
+        // 2. Render Chat
+        const chatBox = document.getElementById('chat-box');
+        chatBox.innerHTML = state.chat.map(c => `
+            <div style="font-size: 13px; word-wrap: break-word;">
+                <span style="color: ${c.user === MY_USERNAME ? 'var(--accent)' : '#888'}; font-weight:bold;">${c.user}:</span> 
+                ${c.text}
+            </div>
+        `).join('');
+        chatBox.scrollTop = chatBox.scrollHeight;
+
+        // 3. Render Inventory
+        const invBox = document.getElementById('my-inventory');
+        invBox.innerHTML = myPurchasesCache.map(m => `
+            <div style="display:flex; justify-content:space-between; font-size:13px; margin-bottom:5px; padding-bottom:5px; border-bottom:1px solid #333;">
+                <span>${m.name}</span> <span style="color:#888;">[${m.tier}]</span>
+            </div>
+        `).join('');
+
+        // 4. Handle Views
+        document.getElementById('state-lobby').style.display = 'none';
+        document.getElementById('state-auction').style.display = 'none';
+        document.getElementById('state-lineup').style.display = 'none';
+        document.getElementById('state-results').style.display = 'none';
+
+        if (state.status === 'lobby') {
+            document.getElementById('state-lobby').style.display = 'flex';
+        } 
+        else if (state.status === 'auction') {
+            document.getElementById('state-auction').style.display = 'flex';
+            const mob = state.queue[state.current_mob_idx];
+            if(mob) {
+                document.getElementById('mob-counter').innerText = `${state.current_mob_idx + 1}/${state.queue.length}`;
+                document.getElementById('mob-name').innerText = mob.name;
+                document.getElementById('mob-cat').innerText = mob.category;
+                
+                const badge = document.getElementById('mob-tier');
+                badge.innerText = mob.tier !== 'N/A' ? `${mob.tier} TIER` : 'RANKED';
+                
+                let color = 'var(--text)';
+                if (mob.category === 'hostile') color = 'var(--hostile)';
+                if (mob.category === 'neutral') color = 'var(--neutral)';
+                if (mob.category === 'passive') color = 'var(--passive)';
+                badge.style.color = color; badge.style.borderColor = color;
+
+                document.getElementById('current-bid').innerText = `◈${state.bid.toFixed(1)}`;
+                document.getElementById('highest-bidder').innerText = state.highest_bidder ? `Leading: ${state.highest_bidder}` : 'Awaiting opening bid...';
+            }
+        }
+        else if (state.status === 'lineup') {
+            document.getElementById('state-lineup').style.display = 'block';
+            if (!state.players[MY_USERNAME].is_ready) buildLineupForm();
+            else {
+                document.getElementById('lineup-waiting').style.display = 'block';
+                document.querySelectorAll('#state-lineup button, #state-lineup select').forEach(e => e.disabled = true);
+            }
+        }
+        else if (state.status === 'results') {
+            document.getElementById('state-results').style.display = 'flex';
+            renderResults(state);
+        }
+    }
+
+    function buildLineupForm() {
+        const slots = { 'hostile': 7, 'neutral': 3, 'passive': 2 };
+        for (const [cat, max] of Object.entries(slots)) {
+            let html = `<div class="cat-title" style="color: var(--${cat});">${cat}</div>`;
+            const availableMobs = myPurchasesCache.filter(m => m.category === cat);
+            
+            for (let i = 1; i <= max; i++) {
+                html += `
+                    <div class="slot-row">
+                        <div class="slot-num">${i}.</div>
+                        <select class="lineup-select" data-cat="${cat}" data-slot="${i}" style="flex:1; padding:8px; background:#000; color:white; border:1px solid var(--border); border-radius:4px;" onchange="preventDuplicateSelection(this, '${cat}')">
+                            <option value="">-- Empty --</option>
+                            ${availableMobs.map(m => `<option value="${m.id}">${m.name} [${m.tier}]</option>`).join('')}
+                        </select>
+                    </div>
+                `;
+            }
+            document.getElementById(`cat-${cat}`).innerHTML = html;
+        }
+    }
+
+    function preventDuplicateSelection(selectEl, cat) {
+        const val = selectEl.value;
+        const allSelects = document.querySelectorAll(`select[data-cat="${cat}"]`);
+        allSelects.forEach(s => {
+            if (s === selectEl) return;
+            Array.from(s.options).forEach(opt => {
+                if (opt.value && opt.value === val) opt.disabled = !!val;
+                else if (opt.value) {
+                    let used = false;
+                    allSelects.forEach(other => { if (other !== s && other.value === opt.value) used = true; });
+                    opt.disabled = used;
+                }
+            });
+        });
+    }
+
+    function submitLineup() {
+        const lineup = { hostile: {}, neutral: {}, passive: {} };
+        document.querySelectorAll('.lineup-select').forEach(s => {
+            if (s.value) lineup[s.dataset.cat][s.dataset.slot] = s.value;
+        });
+        socket.emit('submit_lineup', lineup);
+    }
+
+    // Explicit Requirement: Show Lineup and explicitly show WHICH mob won
+    function renderResults(state) {
+        const res = state.results;
+        
+        // Leaderboard
+        let lbHtml = '';
+        const sorted = Object.entries(res.scores).sort((a,b) => b[1] - a[1]);
+        sorted.forEach(([p, score], idx) => {
+            lbHtml += `<div class="score-card">
+                <div style="font-size:14px; color:#888;">${idx===0 ? '🏆 WINNER' : '#'+(idx+1)}</div>
+                <div style="color:${idx===0 ? 'var(--accent)' : 'white'};">${p}</div>
+                <div style="font-size:36px; color:#10b981;">${score} <span style="font-size:14px;">pts</span></div>
+            </div>`;
+        });
+        document.getElementById('leaderboard').innerHTML = lbHtml;
+
+        // Lineup Breakdown Grid
+        let gridHtml = '';
+        for (const p of sorted.map(x => x[0])) {
+            const pData = state.players[p];
+            gridHtml += `<div class="final-player-col">
+                <h3 style="text-align:center; color:var(--accent); margin-bottom:15px;">${p}</h3>`;
+                
+            ['hostile', 'neutral', 'passive'].forEach(cat => {
+                gridHtml += `<div style="font-size:11px; color:#888; margin-top:10px; margin-bottom:5px; text-transform:uppercase;">${cat}</div>`;
+                const max = {'hostile':7, 'neutral':3, 'passive':2}[cat];
+                
+                for(let i=1; i<=max; i++) {
+                    const mobId = pData.lineup[cat][str(i)];
+                    const isWinner = res.winners[cat][str(i)] === p;
+                    
+                    let mobStr = '— Empty —';
+                    if (mobId) {
+                        const m = state.queue.find(x => x.id === mobId) || state.queue.find(x => x.id === parseInt(mobId)); // Safe fallback
+                        if (m) mobStr = m.name;
+                    }
+                    
+                    gridHtml += `
+                        <div class="final-slot ${isWinner ? 'winner' : ''}">
+                            <span style="color:#888;">${i}.</span>
+                            <span>${mobStr}</span>
+                            ${isWinner ? '👑' : ''}
+                        </div>
+                    `;
+                }
+            });
+            gridHtml += `</div>`;
+        }
+        document.getElementById('final-lineups').innerHTML = gridHtml;
+    }
+    
+    function str(num) { return num.toString(); }
+</script>
+</body>
+</html>
