@@ -6,8 +6,8 @@ from flask_socketio import SocketIO, emit
 app = Flask(__name__)
 app.secret_key = 'super_secret_mineauct_key'
 # Eventlet is required for production-grade async WebSocket handling on Render
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet')
-
+# Change this line:
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='gevent')
 DB_PATH = 'mineauct.db'
 
 # --- GAME DATA ---
