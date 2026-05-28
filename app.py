@@ -29,9 +29,13 @@ TIER_VAL = {'S': 4, 'A': 3, 'B': 2, 'F': 1, 'N/A': 0}
 MAX_SLOTS = {'hostile': 7, 'neutral': 3, 'passive': 2}
 
 # --- DATABASE INIT ---
+# --- DATABASE INIT ---
 def init_db():
     conn = sqlite3.connect(DB_PATH)
-    conn.execute('CREATE TABLE IF NOT EXISTS users (username TEXT PRIMARY KEY, password TEXT, is_host INTEGER)')
+    # ADD THIS LINE: Force wipe the old database table so new users are registered
+    conn.execute('DROP TABLE IF EXISTS users')
+    
+    conn.execute('CREATE TABLE users (username TEXT PRIMARY KEY, password TEXT, is_host INTEGER)')
     # Pre-seed the 4 players
     players = [('Donald Trump', 'donald_duck', 1), ('Vladimir Putin', 'pass2', 0), ('Xi Jinping', 'pass3', 0), ('Narendra Modi', 'pass4', 0)]
     for p in players:
