@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MineAuct Arena</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
     <style>
@@ -12,58 +13,75 @@
             --winner-bg: rgba(124, 58, 237, 0.2); --winner-border: #7c3aed;
         }
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        body { background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; }
+        body { background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; overflow-x: hidden; }
         
-        /* Navbar */
-        nav { background: var(--panel); border-bottom: 1px solid var(--border); padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; }
+        nav { background: var(--panel); border-bottom: 1px solid var(--border); padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
         .brand { font-size: 20px; font-weight: bold; color: var(--accent); }
-        .btn { background: var(--accent); color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        .btn { background: var(--accent); color: white; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 14px; transition: 0.2s; }
         .btn:hover { background: var(--accent-hover); }
         .btn-red { background: #dc2626; } .btn-red:hover { background: #b91c1c; }
+        .btn-orange { background: #f97316; } .btn-orange:hover { background: #ea580c; }
+        .btn-outline { background: transparent; border: 1px solid var(--border); } .btn-outline:hover { border-color: var(--accent); }
         
-        /* Layouts */
-        .container { flex: 1; padding: 20px; display: none; max-width: 1200px; margin: 0 auto; width: 100%; }
-        .active { display: block; }
+        .container { flex: 1; padding: 20px; display: none; max-width: 1400px; margin: 0 auto; width: 100%; }
+        .active { display: flex; flex-direction: column; }
         
-        /* Login */
-        .login-box { max-width: 400px; margin: 100px auto; background: var(--panel); padding: 30px; border: 1px solid var(--border); border-radius: 12px; }
+        /* Login & Disclaimer */
+        .login-box { max-width: 400px; width: 100%; margin: 60px auto 20px; background: var(--panel); padding: 30px; border: 1px solid var(--border); border-radius: 12px; }
         .input-group { margin-bottom: 15px; }
         .input-group label { display: block; margin-bottom: 5px; font-size: 12px; text-transform: uppercase; color: #888; }
-        .input-group input, .input-group select { width: 100%; padding: 10px; background: #000; border: 1px solid var(--border); color: white; border-radius: 6px; }
+        .input-group input, .input-group select { width: 100%; padding: 12px; background: #000; border: 1px solid var(--border); color: white; border-radius: 6px; }
+        .disclaimer { max-width: 600px; margin: auto; padding: 20px; text-align: center; font-size: 11px; color: #666; line-height: 1.5; }
         
-        /* Game Layout */
-        .grid-layout { display: grid; grid-template-columns: 250px 1fr 300px; gap: 20px; height: calc(100vh - 100px); }
-        .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 20px; display: flex; flex-direction: column; }
+        /* Responsive Grid Layout */
+        .grid-layout { display: grid; grid-template-columns: 280px 1fr 320px; gap: 20px; height: calc(100vh - 120px); min-height: 600px; }
+        .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 20px; display: flex; flex-direction: column; overflow: hidden; }
         
+        /* Mobile Adjustments */
+        @media (max-width: 992px) {
+            .grid-layout { grid-template-columns: 1fr; height: auto; }
+            .panel { overflow: visible; margin-bottom: 10px; }
+            #players-list { display: flex; overflow-x: auto; gap: 10px; padding-bottom: 10px; }
+            .player-card { min-width: 200px; margin-bottom: 0; }
+            .chat-box { min-height: 250px; }
+            .controls { flex-wrap: wrap; justify-content: center; }
+            .auction-center h1 { font-size: 28px; }
+            .current-bid { font-size: 48px !important; }
+        }
+
         /* Players */
-        .player-card { padding: 15px; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 10px; background: #000; }
+        .player-card { padding: 15px; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 10px; background: #000; transition: 0.2s; }
         .player-card.is-me { border-color: var(--accent); }
         .purse { font-size: 24px; font-weight: bold; color: #10b981; margin-top: 5px; }
         
         /* Auction Center */
-        .auction-center { text-align: center; display: flex; flex-direction: column; justify-content: center; align-items: center; }
-        .mob-title { font-size: 48px; font-weight: bold; margin: 10px 0; }
+        .auction-center { text-align: center; display: flex; flex-direction: column; justify-content: center; align-items: center; flex: 1; }
+        .mob-title { font-size: clamp(32px, 5vw, 48px); font-weight: bold; margin: 10px 0; }
         .tier-badge { padding: 5px 15px; border-radius: 20px; font-weight: bold; font-size: 14px; border: 1px solid; }
         .current-bid { font-size: 64px; font-weight: bold; color: var(--accent); margin: 20px 0; }
-        .controls { display: flex; gap: 10px; margin-top: 20px; }
+        .controls { display: flex; gap: 8px; margin-top: 20px; align-items: center; }
+        .custom-bid-group { display: flex; background: #000; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+        .custom-bid-group input { background: transparent; border: none; color: white; padding: 10px; width: 80px; outline: none; }
+        
+        /* Lobby History */
+        .history-list { display: flex; flex-direction: column; gap: 10px; flex: 1; overflow-y: auto; margin-top: 15px; }
+        .history-item { background: #000; border: 1px solid var(--border); border-radius: 8px; padding: 15px; display: flex; justify-content: space-between; align-items: center; }
         
         /* Chat */
         .chat-box { flex: 1; overflow-y: auto; background: #000; border: 1px solid var(--border); border-radius: 8px; padding: 10px; margin-bottom: 10px; display: flex; flex-direction: column; gap: 8px; }
         .chat-input-row { display: flex; gap: 5px; }
         
         /* Lineup & Results Grid */
-        .roster-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+        .roster-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; }
         .cat-title { text-transform: uppercase; font-weight: bold; margin-bottom: 10px; padding-bottom: 5px; border-bottom: 1px solid var(--border); }
         .slot-row { display: flex; gap: 10px; margin-bottom: 10px; align-items: center; }
-        .slot-num { font-weight: bold; color: #888; width: 20px; }
         
-        /* Results Specific */
-        .results-board { display: flex; flex-direction: column; gap: 30px; }
-        .leaderboard { display: flex; justify-content: space-around; background: var(--panel); padding: 20px; border-radius: 12px; border: 1px solid var(--border); }
-        .score-card { text-align: center; font-size: 24px; font-weight: bold; }
-        .lineups-comparison { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; }
+        /* Results */
+        .leaderboard { display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; background: var(--panel); padding: 20px; border-radius: 12px; border: 1px solid var(--border); }
+        .score-card { text-align: center; font-size: 24px; font-weight: bold; min-width: 150px; }
+        .lineups-comparison { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; margin-top: 20px; }
         .final-player-col { background: var(--panel); padding: 15px; border: 1px solid var(--border); border-radius: 8px; }
-        .final-slot { padding: 8px; margin-bottom: 5px; border: 1px solid var(--border); border-radius: 6px; background: #000; font-size: 14px; display: flex; justify-content: space-between; }
+        .final-slot { padding: 8px; margin-bottom: 5px; border: 1px solid var(--border); border-radius: 6px; background: #000; font-size: 13px; display: flex; justify-content: space-between; }
         .final-slot.winner { background: var(--winner-bg); border-color: var(--winner-border); font-weight: bold; }
     </style>
 </head>
@@ -74,6 +92,7 @@
     <div id="nav-user"></div>
 </nav>
 
+<!-- LOGIN VIEW -->
 <div id="view-login" class="container {% if view == 'login' %}active{% endif %}">
     <div class="login-box">
         <h2 style="margin-bottom: 20px; text-align: center;">Enter Arena</h2>
@@ -93,46 +112,72 @@
         <button class="btn" style="width: 100%;" onclick="doLogin()">Login</button>
         <p id="login-err" style="color: red; margin-top: 10px; text-align: center;"></p>
     </div>
+    <div class="disclaimer">
+        <strong>Disclaimer:</strong> This website is created solely for fun and entertainment purposes. The creator assumes no responsibility for any conflicts, real-world wagers, or issues arising from gameplay. Play at your own risk.
+    </div>
 </div>
 
-<div id="view-game" class="container {% if view == 'game' %}active{% endif %}" style="max-width: 1600px;">
+<!-- GAME VIEW -->
+<div id="view-game" class="container {% if view == 'game' %}active{% endif %}">
     <div class="grid-layout">
         
-        <div class="panel" style="overflow-y: auto;">
+        <!-- Left: Players -->
+        <div class="panel">
             <h3 style="margin-bottom: 15px; text-transform: uppercase; color: #888; font-size: 12px;">Players</h3>
-            <div id="players-list"></div>
+            <div id="players-list" style="flex:1; overflow-y:auto;"></div>
         </div>
 
-        <div class="panel" style="position: relative;">
+        <!-- Center: Dynamic Area -->
+        <div class="panel" style="position: relative; overflow-y: auto;">
             
-            <div id="state-lobby" class="auction-center" style="display:none; height: 100%;">
-                <h1 style="font-size: 40px; margin-bottom: 10px;">Waiting Room</h1>
-                <p style="color: #888; margin-bottom: 30px;">Waiting for the Host to start...</p>
-                {% if is_host %}
-                <button class="btn" style="font-size: 20px; padding: 15px 40px;" onclick="socket.emit('start_game')">START MATCH</button>
-                {% endif %}
+            <!-- Lobby & History -->
+            <div id="state-lobby" style="display:none; height: 100%; flex-direction: column;">
+                <div style="text-align: center; margin-bottom: 30px;">
+                    <h1 style="font-size: 32px; margin-bottom: 10px;">Lobby</h1>
+                    {% if is_host %}
+                    <button class="btn" style="font-size: 18px; padding: 12px 30px;" onclick="socket.emit('start_game')">START NEW MATCH</button>
+                    {% else %}
+                    <p style="color: #888;">Waiting for the Host to start a new match...</p>
+                    {% endif %}
+                </div>
+                
+                <h3 style="border-bottom: 1px solid var(--border); padding-bottom: 10px;">Match History</h3>
+                <div id="match-history" class="history-list"></div>
+                <div class="disclaimer" style="margin-top:auto;">
+                    <strong>Disclaimer:</strong> This website is created solely for fun and entertainment purposes. The creator assumes no responsibility for any conflicts, real-world wagers, or issues arising from gameplay. Play at your own risk.
+                </div>
             </div>
 
+            <!-- Auction -->
             <div id="state-auction" class="auction-center" style="display:none; height: 100%;">
-                <div style="position: absolute; top: 20px; right: 20px; font-weight: bold; color: #888;">
-                    Mob: <span id="mob-counter" style="color: white;">0/0</span>
+                <div style="font-weight: bold; color: #888; margin-bottom: 10px;">
+                    Mob Queue: <span id="mob-counter" style="color: white;">0/0</span>
                 </div>
-                <div id="mob-tier" class="tier-badge" style="color: var(--hostile); border-color: var(--hostile);">S TIER</div>
+                <div id="mob-tier" class="tier-badge">S TIER</div>
                 <div id="mob-name" class="mob-title">Warden</div>
                 <div id="mob-cat" style="text-transform: uppercase; letter-spacing: 2px; color: #888;">Hostile</div>
                 
                 <div id="current-bid" class="current-bid">◈0.5</div>
-                <div id="highest-bidder" style="font-weight: bold; font-size: 18px; margin-bottom: 20px;">Awaiting bid...</div>
+                <div id="highest-bidder" style="font-weight: bold; font-size: 16px; margin-bottom: 20px;">Awaiting bid...</div>
                 
                 <div class="controls">
-                    <button class="btn" onclick="socket.emit('place_bid', 0.5)">+0.5</button>
-                    <button class="btn" onclick="socket.emit('place_bid', 1.0)">+1</button>
-                    <button class="btn" onclick="socket.emit('place_bid', 5.0)">+5</button>
-                    <button class="btn btn-red" onclick="socket.emit('pass_bid')">🚫 PASS</button>
+                    <button class="btn btn-outline" onclick="socket.emit('place_bid', 0.5)">+0.5</button>
+                    <button class="btn btn-outline" onclick="socket.emit('place_bid', 1.0)">+1</button>
+                    <button class="btn btn-outline" onclick="socket.emit('place_bid', 5.0)">+5</button>
+                    
+                    <div class="custom-bid-group">
+                        <input type="number" id="custom-bid-amt" placeholder="Custom" min="0.5" step="0.5">
+                        <button class="btn" style="border-radius:0;" onclick="placeCustomBid()">Bid</button>
+                    </div>
+                </div>
+                <div class="controls" style="margin-top: 10px;">
+                    <button class="btn btn-red" onclick="socket.emit('pass_bid')">🚫 PASS MOB</button>
+                    <button class="btn btn-orange" onclick="skipCategory()">⏭️ SKIP CATEGORY</button>
                 </div>
             </div>
 
-            <div id="state-lineup" style="display:none;">
+            <!-- Lineup -->
+            <div id="state-lineup" style="display:none; flex-direction: column;">
                 <h2 style="margin-bottom: 20px; text-align: center;">Set Your Tactical Lineup</h2>
                 <div class="roster-grid">
                     <div id="cat-hostile"></div>
@@ -145,25 +190,31 @@
                 </div>
             </div>
 
-            <div id="state-results" style="display:none;" class="results-board">
-                <h1 style="text-align: center; color: var(--accent);">Match Complete</h1>
+            <!-- Results -->
+            <div id="state-results" style="display:none; flex-direction: column;">
+                <h1 style="text-align: center; color: var(--accent); margin-bottom: 20px;">Match Complete</h1>
                 <div id="leaderboard" class="leaderboard"></div>
                 
-                <h3 style="text-align: center; border-bottom: 1px solid var(--border); padding-bottom: 10px;">Lineup Breakdown</h3>
+                <h3 style="text-align: center; margin: 30px 0 10px; border-bottom: 1px solid var(--border); padding-bottom: 10px;">Lineup Breakdown</h3>
                 <div id="final-lineups" class="lineups-comparison"></div>
                 
-                <div style="text-align: center;">
-                    <button class="btn" onclick="socket.emit('start_game')">Return to Lobby / Play Again</button>
+                <div style="text-align: center; margin-top: 30px;">
+                    {% if is_host %}
+                    <button class="btn" onclick="socket.emit('return_lobby')">Return to Lobby</button>
+                    {% else %}
+                    <p style="color: #888;">Waiting for Host to return to lobby...</p>
+                    {% endif %}
                 </div>
             </div>
 
         </div>
 
+        <!-- Right: Chat & Inventory -->
         <div class="panel">
             <h3 style="margin-bottom: 10px; text-transform: uppercase; color: #888; font-size: 12px;">Match Chat</h3>
             <div id="chat-box" class="chat-box"></div>
             <div class="chat-input-row">
-                <input type="text" id="chat-input" class="input-group" style="flex:1; padding:10px; background:#000; color:white; border:1px solid var(--border); border-radius:6px;" placeholder="Message..." onkeypress="if(event.key==='Enter') sendChat()">
+                <input type="text" id="chat-input" style="flex:1; padding:10px; background:#000; color:white; border:1px solid var(--border); border-radius:6px; outline:none;" placeholder="Message..." onkeypress="if(event.key==='Enter') sendChat()">
                 <button class="btn" onclick="sendChat()">Send</button>
             </div>
             
@@ -176,12 +227,14 @@
 
 <script>
     const MY_USERNAME = "{{ username }}";
+    const IS_HOST = "{{ is_host }}" === "1";
     if (MY_USERNAME) document.getElementById('nav-user').innerHTML = `<b>${MY_USERNAME}</b> | <a href="/logout" style="color:#888; text-decoration:none;">Logout</a>`;
     
     let socket;
     if (MY_USERNAME) {
         socket = io();
         socket.on('sync_state', (state) => renderState(state));
+        socket.on('match_history', (history) => renderHistory(history));
     }
 
     async function doLogin() {
@@ -203,6 +256,44 @@
             inp.value = '';
         }
     }
+    
+    function placeCustomBid() {
+        const amt = document.getElementById('custom-bid-amt').value;
+        if(amt && parseFloat(amt) > 0) {
+            socket.emit('place_bid', parseFloat(amt), true);
+            document.getElementById('custom-bid-amt').value = '';
+        }
+    }
+    
+    function skipCategory() {
+        if(confirm("Are you sure you want to forfeit this entire category? You will not be able to bid on any more mobs of this type!")) {
+            socket.emit('skip_category');
+        }
+    }
+
+    function renderHistory(history) {
+        const histBox = document.getElementById('match-history');
+        if(history.length === 0) {
+            histBox.innerHTML = '<p style="color:#888; text-align:center; padding: 20px;">No matches played yet.</p>';
+            return;
+        }
+        
+        histBox.innerHTML = history.map(h => {
+            const sorted = Object.entries(h.data.scores).sort((a,b) => b[1] - a[1]);
+            const winner = sorted[0][0];
+            const date = new Date(h.time).toLocaleString();
+            return `
+                <div class="history-item">
+                    <div>
+                        <div style="font-weight:bold; color:var(--accent);">Match #${h.id}</div>
+                        <div style="font-size:12px; color:#888;">${date}</div>
+                        <div style="font-size:14px; margin-top:5px;">🏆 Winner: <b>${winner}</b></div>
+                    </div>
+                    ${IS_HOST ? `<button class="btn btn-red" style="padding: 5px 10px; font-size: 12px;" onclick="if(confirm('Delete Match #${h.id}?')) socket.emit('delete_match', ${h.id})">Delete</button>` : ''}
+                </div>
+            `;
+        }).join('');
+    }
 
     let myPurchasesCache = [];
 
@@ -217,12 +308,12 @@
             
             pList.innerHTML += `
                 <div class="player-card ${isMe ? 'is-me' : ''}" style="opacity: ${isOut ? '0.4' : '1'}">
-                    <div style="display:flex; justify-content:space-between;">
+                    <div style="display:flex; justify-content:space-between; margin-bottom: 5px;">
                         <b>${uname}</b> 
                         ${isLead ? '<span style="color:var(--accent); font-size:12px; font-weight:bold;">LEAD</span>' : ''}
                     </div>
                     <div class="purse">◈${data.purse.toFixed(1)}</div>
-                    <div style="font-size: 12px; color: #888; margin-top: 5px;">Mobs: ${data.purchases.length}</div>
+                    <div style="font-size: 12px; color: #888; margin-top: 5px;">Mobs: ${data.purchases.length} | Skips: ${data.skipped.length > 0 ? data.skipped.join(', ') : 'None'}</div>
                 </div>
             `;
             if (isMe) myPurchasesCache = data.purchases;
@@ -277,7 +368,7 @@
             }
         }
         else if (state.status === 'lineup') {
-            document.getElementById('state-lineup').style.display = 'block';
+            document.getElementById('state-lineup').style.display = 'flex';
             if (!state.players[MY_USERNAME].is_ready) buildLineupForm();
             else {
                 document.getElementById('lineup-waiting').style.display = 'block';
@@ -299,8 +390,8 @@
             for (let i = 1; i <= max; i++) {
                 html += `
                     <div class="slot-row">
-                        <div class="slot-num">${i}.</div>
-                        <select class="lineup-select" data-cat="${cat}" data-slot="${i}" style="flex:1; padding:8px; background:#000; color:white; border:1px solid var(--border); border-radius:4px;" onchange="preventDuplicateSelection(this, '${cat}')">
+                        <div class="slot-num" style="width:20px;">${i}.</div>
+                        <select class="lineup-select" data-cat="${cat}" data-slot="${i}" style="flex:1; padding:10px; background:#000; color:white; border:1px solid var(--border); border-radius:6px; outline:none;" onchange="preventDuplicateSelection(this, '${cat}')">
                             <option value="">-- Empty --</option>
                             ${availableMobs.map(m => `<option value="${m.id}">${m.name} [${m.tier}]</option>`).join('')}
                         </select>
@@ -335,11 +426,9 @@
         socket.emit('submit_lineup', lineup);
     }
 
-    // Explicit Requirement: Show Lineup and explicitly show WHICH mob won
     function renderResults(state) {
         const res = state.results;
         
-        // Leaderboard
         let lbHtml = '';
         const sorted = Object.entries(res.scores).sort((a,b) => b[1] - a[1]);
         sorted.forEach(([p, score], idx) => {
@@ -351,7 +440,6 @@
         });
         document.getElementById('leaderboard').innerHTML = lbHtml;
 
-        // Lineup Breakdown Grid
         let gridHtml = '';
         for (const p of sorted.map(x => x[0])) {
             const pData = state.players[p];
@@ -368,14 +456,14 @@
                     
                     let mobStr = '— Empty —';
                     if (mobId) {
-                        const m = state.queue.find(x => x.id === mobId) || state.queue.find(x => x.id === parseInt(mobId)); // Safe fallback
+                        const m = state.queue.find(x => x.id === mobId) || state.queue.find(x => x.id === parseInt(mobId));
                         if (m) mobStr = m.name;
                     }
                     
                     gridHtml += `
                         <div class="final-slot ${isWinner ? 'winner' : ''}">
-                            <span style="color:#888;">${i}.</span>
-                            <span>${mobStr}</span>
+                            <span style="color:#888; width:15px;">${i}.</span>
+                            <span style="flex:1; margin-left:5px;">${mobStr}</span>
                             ${isWinner ? '👑' : ''}
                         </div>
                     `;
