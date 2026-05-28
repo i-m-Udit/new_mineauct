@@ -33,7 +33,7 @@ def init_db():
     conn = sqlite3.connect(DB_PATH)
     conn.execute('CREATE TABLE IF NOT EXISTS users (username TEXT PRIMARY KEY, password TEXT, is_host INTEGER)')
     # Pre-seed the 4 players
-    players = [('player1', 'player1', 1), ('player2', 'player2', 0), ('player3', 'player3', 0), ('player4', 'player4', 0)]
+    players = [('Donald Trump', 'donald_duck', 1), ('Vladimir Putin', 'pass2', 0), ('Xi Jinping', 'pass3', 0), ('Narendra Modi', 'pass4', 0)]
     for p in players:
         try: conn.execute('INSERT INTO users VALUES (?,?,?)', p)
         except: pass
